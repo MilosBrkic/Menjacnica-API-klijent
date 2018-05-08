@@ -19,11 +19,15 @@ import menjacnica.URLConnectionUtil;
 import menjacnica.Valuta;
 
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JSpinner;
 import javax.swing.JButton;
 import javax.swing.JTextField;
 import javax.swing.SpinnerListModel;
 import javax.swing.JComboBox;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.Color;
 
 public class Menjacnica extends JFrame {
 
@@ -39,6 +43,7 @@ public class Menjacnica extends JFrame {
 	private JComboBox comboBoxDesni;
 
 	private Valuta[] valute;
+	private JLabel poruka;
 	/**
 	 * Launch the application.
 	 */
@@ -79,6 +84,7 @@ public class Menjacnica extends JFrame {
 		contentPane.add(getTextFieldIznosDesni());
 		contentPane.add(getComboBoxLevi());
 		contentPane.add(getComboBoxDesni());
+		contentPane.add(getPoruka());
 		
 		ucitajZemlje();
 	}
@@ -99,6 +105,11 @@ public class Menjacnica extends JFrame {
 	private JButton getBtnKonvertuj() {
 		if (btnKonvertuj == null) {
 			btnKonvertuj = new JButton("Konvertuj");
+			btnKonvertuj.addActionListener(new ActionListener() {
+				public void actionPerformed(ActionEvent e) {
+					konvertuj();
+				}
+			});
 			btnKonvertuj.setBounds(138, 208, 89, 23);
 		}
 		return btnKonvertuj;
@@ -182,5 +193,55 @@ public class Menjacnica extends JFrame {
 			e.printStackTrace();
 		}
 		
+	}
+	
+	private void konvertuj() {
+		poruka.setText("");
+		
+		String desni = (String)comboBoxDesni.getSelectedItem();
+		String levi = (String)comboBoxLevi.getSelectedItem();
+		
+		for(int i=0;i<valute.length;i++)
+			if(valute[i].getName().equals(desni))
+				desni=valute[i].getCurrencyId();
+		
+		for(int i=0;i<valute.length;i++)
+			if(valute[i].getName().equals(levi))
+				levi=valute[i].getCurrencyId();
+
+		String q = levi+"_"+desni;
+		try {
+			String s = URLConnectionUtil.getContent("http://free.currencyconverterapi.com/api/v3/convert?q="+q);
+			Gson gson = new GsonBuilder().create();
+			JsonObject json = (gson.fromJson(s, JsonObject.class));
+			JsonObject query = (JsonObject) json.get("query");
+			int count = query.get("count").getAsInt();
+			
+			if(count==1) {
+				JsonObject results = (JsonObject) json.get("results");
+				JsonObject odnos = (JsonObject) results.get(q);
+				double val = odnos.get("val").getAsDouble();
+				double leviIznos = Double.parseDouble(textFieldIznosLevi.getText());
+				double desniIznos = val*leviIznos;
+				textFieldIznosDesni.setText(Double.toString(desniIznos));
+			}
+			else JOptionPane.showMessageDialog(null, "Ne postoje podaci o odnosu ove dve valute.");
+				
+			System.out.println(s);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		catch (NumberFormatException e) {
+			poruka.setText("Neispravan iznos!");
+		}
+	}
+	private JLabel getPoruka() {
+		if (poruka == null) {
+			poruka = new JLabel("");
+			poruka.setForeground(Color.RED);
+			poruka.setBounds(40, 176, 168, 14);
+		}
+		return poruka;
 	}
 }
