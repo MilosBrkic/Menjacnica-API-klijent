@@ -2,7 +2,14 @@ package menjacnica.gui;
 
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
+import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.GregorianCalendar;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
@@ -85,7 +92,7 @@ public class Menjacnica extends JFrame {
 		contentPane.add(getComboBoxLevi());
 		contentPane.add(getComboBoxDesni());
 		contentPane.add(getPoruka());
-		
+
 		ucitajZemlje();
 	}
 	private JLabel getLblIzValuteZemlje() {
@@ -198,6 +205,7 @@ public class Menjacnica extends JFrame {
 	private void konvertuj() {
 		poruka.setText("");
 		
+		double val=0;
 		String desni = (String)comboBoxDesni.getSelectedItem();
 		String levi = (String)comboBoxLevi.getSelectedItem();
 		
@@ -220,14 +228,15 @@ public class Menjacnica extends JFrame {
 			if(count==1) {
 				JsonObject results = (JsonObject) json.get("results");
 				JsonObject odnos = (JsonObject) results.get(q);
-				double val = odnos.get("val").getAsDouble();
+				val = odnos.get("val").getAsDouble();
 				double leviIznos = Double.parseDouble(textFieldIznosLevi.getText());
 				double desniIznos = val*leviIznos;
-				textFieldIznosDesni.setText(Double.toString(desniIznos));
+				textFieldIznosDesni.setText(Double.toString(desniIznos));	
 			}
 			else JOptionPane.showMessageDialog(null, "Ne postoje podaci o odnosu ove dve valute.");
-				
-			System.out.println(s);
+
+			izvestaj(levi, desni, val, count);	
+
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -243,5 +252,39 @@ public class Menjacnica extends JFrame {
 			poruka.setBounds(40, 176, 168, 14);
 		}
 		return poruka;
+	}
+	
+	private void izvestaj(String levi, String desni, double odnos, int count) {
+		Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
+		GregorianCalendar danas = new GregorianCalendar();
+		JsonObject kon = new JsonObject();
+		JsonArray niz;
+		String datumVreme = danas.get(GregorianCalendar.YEAR)+"-"+danas.get(GregorianCalendar.MONTH)+"-"+danas.get(GregorianCalendar.DAY_OF_MONTH)
+		+" "+danas.get(GregorianCalendar.HOUR_OF_DAY)+":"+danas.get(GregorianCalendar.MINUTE)+":"+danas.get(GregorianCalendar.SECOND)+"."+danas.get(GregorianCalendar.MILLISECOND);
+		
+		kon.addProperty("datumVreme", datumVreme);
+		kon.addProperty("izValuta", levi);
+		kon.addProperty("uValuta", desni);
+		if(count==1)
+			kon.addProperty("kurs", odnos);
+		else
+			kon.add("kurs", null);
+
+		
+		try (FileReader reader = new FileReader("data/log.json")) {
+			niz = gson.fromJson(reader, JsonArray.class);
+		} catch (Exception e) {
+			niz = new JsonArray();
+		}
+		
+		niz.add(kon);
+			
+		try (PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("data/log.json")))) {
+			out.println(gson.toJson(niz));
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 	}
 }
